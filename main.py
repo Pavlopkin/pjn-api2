@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from scraper import PJNScraper
+from mcp_server import register_mcp_routes
 import os
 
 app = FastAPI(
@@ -11,8 +12,6 @@ app = FastAPI(
 )
 
 security = HTTPBearer()
-
-# Token de seguridad para proteger tu API (se configura en Railway como variable de entorno)
 API_TOKEN = os.getenv("API_TOKEN", "cambia-este-token-secreto")
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -29,9 +28,9 @@ class LoginRequest(BaseModel):
 class ExpedienteRequest(BaseModel):
     usuario: str
     password: str
-    numero: str  # Ej: "7639"
-    anio: str    # Ej: "2026"
-    jurisdiccion: str = "COM"  # COM, CIV, CNT, etc.
+    numero: str
+    anio: str
+    jurisdiccion: str = "COM"
 
 
 @app.get("/")
@@ -41,9 +40,6 @@ def root():
 
 @app.post("/expedientes/buscar")
 def buscar_expediente(req: ExpedienteRequest, token: str = Depends(verify_token)):
-    """
-    Busca un expediente judicial en el portal PJN autenticado.
-    """
     scraper = PJNScraper()
     try:
         resultado = scraper.buscar_expediente(
@@ -62,9 +58,6 @@ def buscar_expediente(req: ExpedienteRequest, token: str = Depends(verify_token)
 
 @app.post("/expedientes/mis-causas")
 def mis_causas(req: LoginRequest, token: str = Depends(verify_token)):
-    """
-    Obtiene todos los expedientes vinculados al usuario autenticado.
-    """
     scraper = PJNScraper()
     try:
         causas = scraper.obtener_mis_causas(
@@ -76,3 +69,7 @@ def mis_causas(req: LoginRequest, token: str = Depends(verify_token)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         scraper.cerrar()
+
+
+# Registrar rutas MCP
+register_mcp_routes(app)
